@@ -156,7 +156,7 @@ IR Sensor Servo Motor
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/username/repository-name.git
+git clone https://github.com/naswamtr/Kelompok2_SistemPelintasanKeretaApi
 ```
 
 ### 2. Install Required Libraries
