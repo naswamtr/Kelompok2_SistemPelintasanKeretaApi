@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Palang Pintu Perlintasan Kereta Api</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --rail-navy: #0b2545;
+            --rail-navy-deep: #071a33;
+            --signal-amber: #f4a623;
+            --signal-green: #2e8b57;
+            --signal-red: #c0392b;
+            --steel: #8a97a8;
+            --rail-cream: #f3efe6;
+            --line-yellow: #ffce00;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--rail-navy-deep);
+            background-image:
+                repeating-linear-gradient(180deg, transparent 0 78px, rgba(255, 255, 255, 0.025) 78px 80px);
+            color: var(--rail-cream);
+            margin: 0;
+            padding: 30px 16px 50px;
+        }
+
+        .top-bar {
+            max-width: 640px;
+            margin: 0 auto 24px auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 4px solid var(--line-yellow);
+            padding-bottom: 14px;
+        }
+
+        .top-bar .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: var(--line-yellow);
+            color: var(--rail-navy-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .brand-text span {
+            font-size: 12px;
+            color: var(--steel);
+            letter-spacing: 2px;
+        }
+
+        .station-id {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--signal-amber);
+            text-align: right;
+            line-height: 1.6;
+        }
+
+        .card {
+            background: var(--rail-navy);
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            padding: 24px 26px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--steel);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 10px;
+            margin-bottom: 18px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .status-item .label {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--steel);
+            margin-bottom: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .servo-value {
+            font-size: 22px;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            color: var(--rail-cream);
+        }
+
+        .bg-green {
+            background: var(--signal-green);
+        }
+
+        .bg-red {
+            background: var(--signal-red);
+        }
+
+        .bg-blue {
+            background: var(--signal-amber);
+            color: var(--rail-navy-deep);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: white;
+            transition: 0.15s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-on {
+            background: var(--signal-green);
+        }
+
+        .btn-on:hover {
+            background: #257048;
+        }
+
+        .btn-off {
+            background: var(--signal-red);
+        }
+
+        .btn-off:hover {
+            background: #a13526;
+        }
+
+        .btn-mode {
+            background: transparent;
+            border: 2px solid var(--signal-amber);
+            color: var(--signal-amber);
+        }
+
+        .btn-mode:hover {
+            background: rgba(244, 166, 35, 0.12);
+        }
+
+        .refresh-btn {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 1px solid var(--steel);
+            background: transparent;
+            color: var(--rail-cream);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            float: right;
+            margin-top: -42px;
+        }
+
+        .refresh-btn:hover {
+            border-color: var(--signal-amber);
+            color: var(--signal-amber);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+
+        th,
+        td {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--rail-navy-deep);
+            color: var(--signal-amber);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tbody tr:nth-child(odd) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .gpio-pill {
+            background: var(--steel);
+            color: var(--rail-navy-deep);
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .footer-note {
+            max-width: 600px;
+            margin: 24px auto 0;
+            text-align: center;
+            font-size: 11px;
+            color: var(--steel);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-bar">
+        <div class="brand">
+            <div class="brand-icon">&#9881;</div>
+            <div class="brand-text">
+                <h1>Perlintasan Kereta Api</h1>
+                <span>SISTEM MONITORING PETUGAS</span>
+            </div>
+        </div>
+        <div class="station-id">
+            JPO-04 / KM 12+300<br>
+            RTOS &middot; SHIFTR &middot; MOCKAPI
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Status Perlintasan</h3>
+        <div class="status-grid">
+            <div class="status-item">
+                <div class="label">Mode Sistem</div>
+                <span id="val_mode" class="badge bg-blue">MENGHUBUNGKAN...</span>
+            </div>
+            <div class="status-item">
+                <div class="label">Deteksi Sensor</div>
+                <span id="val_ir" class="badge bg-green">-</span>
+            </div>
+            <div class="status-item" style="grid-column: 1 / -1;">
+                <div class="label">Posisi Palang Pintu</div>
+                <div class="servo-value" id="val_servo">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Kontrol Manual Petugas</h3>
+        <div class="controls">
+            <button class="btn btn-mode" onclick="kirimMqtt('gate/cmd/mode', 'toggle')">&#128737; Ubah Mode
+                Sistem</button>
+            <button class="btn btn-off" onclick="kirimMqtt('gate/cmd/servo', '0')">&#11015; Tutup Palang Pintu</button>
+            <button class="btn btn-on" onclick="kirimMqtt('gate/cmd/servo', '90')">&#11014; Buka Palang Pintu</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Riwayat Aktivitas (MockAPI)</h3>
+        <button class="refresh-btn" onclick="ambilDataLog()">Muat Ulang</button>
+        <table id="tabel_log">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Komponen</th>
+                    <th>Status / Nilai</th>
+                    <th>Pin GPIO</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-note">
+        Naswa Mutiara (23552011185) &middot; Nur Anisa (23552011171) &middot; TIF K 23 A
+    </div>
+
+    <script>
+        // --- KREDENSIAL SHIFTR.IO ---
+        const TOKEN_KEY = "typhoonfighter543";
+        const TOKEN_SECRET = "rYYZjGURxHcPjJ4x";
+        const BROKER_URL = "typhoonfighter543.cloud.shiftr.io";
+
+        // --- ENDPOINT MOCKAPI ---
+        const MOCKAPI_BASE = "https://69a2b449be843d692bd2053d.mockapi.io/api/v1";
+        const MOCKAPI_MONITORING = `${MOCKAPI_BASE}/monitoring`;
+        const MOCKAPI_CONTROLLING = `${MOCKAPI_BASE}/controlling`;
+
+        // Variabel lokal untuk melacak state mode aktif (1 = Otomatis, 0 = Manual)
+        let currentModeState = 1;
+
+        const client = mqtt.connect(`wss://${TOKEN_KEY}:${TOKEN_SECRET}@${BROKER_URL}`, {
+            clientId: 'web_dashboard_' + Math.random().toString(16).substr(2, 8)
+        });
+
+        client.on('connect', function () {
+            console.log('Terhubung ke shiftr.io!');
+            client.subscribe('gate/status/#');
+            ambilDataLog();
+            muatStatusKontrolTerakhir(); // Sinkronisasi awal dengan MockAPI Controlling
+        });
+
+        client.on('message', function (topic, message) {
+            const payload = message.toString();
+
+            if (topic === 'gate/status/ir') {
+                document.getElementById('val_ir').innerText = payload === '0' ? 'ADA OBJEK' : 'KOSONG';
+                document.getElementById('val_ir').className = payload === '0' ? 'badge bg-red' : 'badge bg-green';
+
+                if (payload === '0') {
+                    simpanKeMockAPI("Sensor IR", "Objek Terdeteksi (Gerbang Buka)", 34);
+                }
+            }
+            else if (topic === 'gate/status/servo') {
+                document.getElementById('val_servo').innerText = payload + ' Derajat';
+            }
+            else if (topic === 'gate/status/mode') {
+                currentModeState = parseInt(payload);
+                document.getElementById('val_mode').innerText = currentModeState === 1 ? 'OTOMATIS (SENSOR)' : 'MANUAL (WEB)';
+                document.getElementById('val_mode').className = currentModeState === 1 ? 'badge bg-blue' : 'badge bg-red';
+            }
+        });
+
+        function kirimMqtt(topic, payload) {
+            client.publish(topic, payload);
+
+            if (topic === 'gate/cmd/servo' && payload === '0') {
+                simpanKeMockAPI("Servo Motor", "Dibuka Manual via Web", 18);
+            }
+            else if (topic === 'gate/cmd/mode') {
+                // Balikkan state lokal sementara untuk dikirim ke MockAPI controlling
+                let nextMode = currentModeState === 1 ? 0 : 1;
+                updateKontrolDiMockAPI(nextMode);
+            }
+        }
+
+        // FUNGSI HTTP POST: Mengirim data baru ke resource /monitoring
+        function simpanKeMockAPI(nama, nilai, pin) {
+            const payloadSkema = {
+                monitoring_name: nama,
+                monitoring_value: nilai,
+                monitoring_pin: pin
+            };
+
+            fetch(MOCKAPI_MONITORING, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payloadSkema)
+            })
+                .then(res => res.json())
+                .then(() => {
+                    console.log("Data berhasil disimpan ke MockAPI Monitoring!");
+                    ambilDataLog();
+                })
+                .catch(err => console.error("Gagal POST ke MockAPI Monitoring:", err));
+        }
+
+        // FUNGSI HTTP GET: Mengambil riwayat log dari resource /monitoring
+        function ambilDataLog() {
+            fetch(MOCKAPI_MONITORING)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.querySelector("#tabel_log tbody");
+                    tbody.innerHTML = "";
+
+                    // Urutkan data terbaru di atas, tampilkan 5 entri terakhir
+                    data.reverse().slice(0, 5).forEach(item => {
+                        const row = `<tr>
+                        <td><strong>${item.id}</strong></td>
+                        <td>${item.monitoring_name}</td>
+                        <td>${item.monitoring_value}</td>
+                        <td><span class="gpio-pill">GPIO ${item.monitoring_pin}</span></td>
+                    </tr>`;
+                        tbody.innerHTML += row;
+                    });
+                })
+                .catch(err => console.error("Gagal GET MockAPI Monitoring:", err));
+        }
+
+        // FUNGSI HTTP GET: Mengambil status kontrol terakhir (ID 1) saat halaman web dibuka
+        function muatStatusKontrolTerakhir() {
+            fetch(`${MOCKAPI_CONTROLLING}/1`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Data ID 1 belum ada");
+                    return res.json();
+                })
+                .then(data => {
+                    currentModeState = data.control_status;
+                    document.getElementById('val_mode').innerText = currentModeState === 1 ? 'OTOMATIS (SENSOR)' : 'MANUAL (WEB)';
+                    document.getElementById('val_mode').className = currentModeState === 1 ? 'badge bg-blue' : 'badge bg-red';
+                    console.log("Status awal berhasil dimuat dari MockAPI Controlling!");
+                })
+                .catch(err => {
+                    console.warn("Inisialisasi data controlling awal...", err);
+                    // Jika ID 1 kosong/belum ada di MockAPI, buat data default pertama kali
+                    updateKontrolDiMockAPI(1);
+                });
+        }
+
+        // FUNGSI HTTP PUT: Mengupdate status kontrol utama pada ID 1 di resource /controlling
+        function updateKontrolDiMockAPI(statusBaru) {
+            const payloadControlling = {
+                control_name: "Mode Sistem",
+                control_status: statusBaru,
+                control_pin: 18
+            };
+
+            // Menggunakan PUT pada ID 1 agar data diperbarui di baris yang sama
+            fetch(`${MOCKAPI_CONTROLLING}/1`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payloadControlling)
+            })
+                .then(res => res.json())
+                .then(data => console.log("Data Controlling berhasil diperbarui di MockAPI:", data))
+                .catch(err => console.error("Gagal PUT data controlling:", err));
+        }
+    </script>
+
+</body>
+
+</html>
