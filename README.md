@@ -15,11 +15,11 @@ Sistem Palang Pintu Perlintasan Kereta Api berbasis IoT menggunakan **ESP32**, *
 
 ##
 
-Kelas : TIF K 23A 
-Mata Kuliah : Sistem Mikrokontroller
-Dosen Pengampu : Muhammad Ikhwan Fathulloh, S.Kom.
+- Kelas : TIF K 23A 
+- Mata Kuliah : Sistem Mikrokontroller
+- Dosen Pengampu : Muhammad Ikhwan Fathulloh, S.Kom.
 
-Universitas Teknologi Bandung
+- Universitas Teknologi Bandung
 
 ---
 
